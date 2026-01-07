@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>貪吃蛇遊戲 - 吃到紅色就變長</title>
+    <title>貪吃蛇遊戲 - 吃到紅色變長，黃色加十分</title>
     <style>
         * {
             margin: 0;
@@ -173,6 +173,16 @@
             vertical-align: middle;
         }
         
+        .yellow-food-sample {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            background-color: #ffd700;
+            margin: 0 5px;
+            border-radius: 2px;
+            vertical-align: middle;
+        }
+        
         .snake-color-sample {
             display: inline-block;
             width: 15px;
@@ -181,6 +191,26 @@
             margin: 0 5px;
             border-radius: 2px;
             vertical-align: middle;
+        }
+        
+        .food-types {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #2a2a2a;
+            border-radius: 5px;
+        }
+        
+        .food-type {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .food-label {
+            font-size: 0.9rem;
+            margin-top: 5px;
         }
         
         .footer {
@@ -194,7 +224,7 @@
 <body>
     <div class="header">
         <h1>貪吃蛇遊戲</h1>
-        <p class="subtitle">吃到<span class="food-color-sample"></span>紅色食物就會變長！</p>
+        <p class="subtitle">吃到<span class="food-color-sample"></span>紅色變長，<span class="yellow-food-sample"></span>黃色加十分！</p>
     </div>
     
     <div class="game-container">
@@ -204,11 +234,25 @@
                 <div>長度: <span id="length">1</span></div>
             </div>
             
+            <div class="food-types">
+                <div class="food-type">
+                    <div class="food-color-sample"></div>
+                    <div class="food-label">紅色食物</div>
+                    <div class="food-label">+10分 +長度</div>
+                </div>
+                <div class="food-type">
+                    <div class="yellow-food-sample"></div>
+                    <div class="food-label">黃色食物</div>
+                    <div class="food-label">+10分</div>
+                </div>
+            </div>
+            
             <div class="instructions">
                 <h3>遊戲說明</h3>
                 <ul>
                     <li>使用 <strong>方向鍵</strong> 或 <strong>WASD</strong> 控制蛇的移動</li>
-                    <li>吃到<span class="food-color-sample"></span>紅色食物可以增加分數和蛇的長度</li>
+                    <li>吃到<span class="food-color-sample"></span>紅色食物：增加10分和長度</li>
+                    <li>吃到<span class="yellow-food-sample"></span>黃色食物：增加10分，食物消失</li>
                     <li>避免撞到牆壁或自己的身體</li>
                     <li>蛇身顏色：<span class="snake-color-sample"></span>綠色</li>
                 </ul>
@@ -234,7 +278,7 @@
     </div>
     
     <div class="footer">
-        <p>HTML5 Canvas 貪吃蛇遊戲 | 背景黑色，吃到紅色食物蛇身會變長</p>
+        <p>HTML5 Canvas 貪吃蛇遊戲 | 吃到紅色變長，黃色加十分</p>
     </div>
 
     <script>
@@ -252,8 +296,14 @@
         let snakeY = 10;
         let velocityX = 0;
         let velocityY = 0;
-        let foodX = 5;
-        let foodY = 5;
+        
+        // 食物變數 - 現在有兩種食物
+        let redFoodX = 5;
+        let redFoodY = 5;
+        let yellowFoodX = 15;
+        let yellowFoodY = 15;
+        let yellowFoodActive = true; // 黃色食物是否活躍
+        
         let score = 0;
         let gameRunning = true;
         
@@ -262,7 +312,8 @@
             background: '#000000',
             snake: '#4CAF50',
             snakeHead: '#2E7D32',
-            food: '#FF4444',
+            redFood: '#FF4444',
+            yellowFood: '#FFD700',
             text: '#FFFFFF'
         };
         
@@ -276,9 +327,11 @@
             velocityY = 0;
             score = 0;
             gameRunning = true;
+            yellowFoodActive = true;
             
-            // 生成第一個食物
-            generateFood();
+            // 生成食物
+            generateRedFood();
+            generateYellowFood();
             
             // 更新顯示
             updateScore();
@@ -287,18 +340,45 @@
             document.getElementById('game-over').style.display = 'none';
         }
         
-        // 生成食物
-        function generateFood() {
+        // 生成紅色食物
+        function generateRedFood() {
             // 隨機生成食物位置
-            foodX = Math.floor(Math.random() * tileCount);
-            foodY = Math.floor(Math.random() * tileCount);
+            redFoodX = Math.floor(Math.random() * tileCount);
+            redFoodY = Math.floor(Math.random() * tileCount);
             
             // 確保食物不會生成在蛇身上
             for (let segment of snake) {
-                if (segment.x === foodX && segment.y === foodY) {
-                    generateFood();
+                if (segment.x === redFoodX && segment.y === redFoodY) {
+                    generateRedFood();
                     return;
                 }
+            }
+            
+            // 確保紅色食物不會生成在黃色食物上
+            if (redFoodX === yellowFoodX && redFoodY === yellowFoodY && yellowFoodActive) {
+                generateRedFood();
+                return;
+            }
+        }
+        
+        // 生成黃色食物
+        function generateYellowFood() {
+            // 隨機生成食物位置
+            yellowFoodX = Math.floor(Math.random() * tileCount);
+            yellowFoodY = Math.floor(Math.random() * tileCount);
+            
+            // 確保食物不會生成在蛇身上
+            for (let segment of snake) {
+                if (segment.x === yellowFoodX && segment.y === yellowFoodY) {
+                    generateYellowFood();
+                    return;
+                }
+            }
+            
+            // 確保黃色食物不會生成在紅色食物上
+            if (yellowFoodX === redFoodX && yellowFoodY === redFoodY) {
+                generateYellowFood();
+                return;
             }
         }
         
@@ -308,9 +388,22 @@
             ctx.fillStyle = colors.background;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // 繪製食物（紅色）
-            ctx.fillStyle = colors.food;
-            ctx.fillRect(foodX * gridSize, foodY * gridSize, gridSize - 2, gridSize - 2);
+            // 繪製紅色食物
+            ctx.fillStyle = colors.redFood;
+            ctx.fillRect(redFoodX * gridSize, redFoodY * gridSize, gridSize - 2, gridSize - 2);
+            
+            // 繪製黃色食物（如果活躍）
+            if (yellowFoodActive) {
+                ctx.fillStyle = colors.yellowFood;
+                ctx.fillRect(yellowFoodX * gridSize, yellowFoodY * gridSize, gridSize - 2, gridSize - 2);
+                
+                // 添加閃爍效果
+                const currentTime = new Date().getTime();
+                if (Math.floor(currentTime / 200) % 2 === 0) {
+                    ctx.fillStyle = '#FFFFAA';
+                    ctx.fillRect(yellowFoodX * gridSize + 4, yellowFoodY * gridSize + 4, gridSize - 10, gridSize - 10);
+                }
+            }
             
             // 繪製蛇
             for (let i = 0; i < snake.length; i++) {
@@ -374,15 +467,33 @@
                 return;
             }
             
-            // 檢查是否吃到食物
-            if (snakeX === foodX && snakeY === foodY) {
+            // 檢查是否吃到紅色食物
+            if (snakeX === redFoodX && snakeY === redFoodY) {
                 // 增加分數和長度
                 score += 10;
                 snakeLength++;
                 updateScore();
                 
-                // 生成新食物
-                generateFood();
+                // 生成新紅色食物
+                generateRedFood();
+            }
+            
+            // 檢查是否吃到黃色食物
+            if (yellowFoodActive && snakeX === yellowFoodX && snakeY === yellowFoodY) {
+                // 增加分數
+                score += 10;
+                updateScore();
+                
+                // 黃色食物消失
+                yellowFoodActive = false;
+                
+                // 3秒後重新生成黃色食物
+                setTimeout(() => {
+                    if (gameRunning) {
+                        yellowFoodActive = true;
+                        generateYellowFood();
+                    }
+                }, 3000);
             }
             
             // 更新蛇身
