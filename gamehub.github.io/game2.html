@@ -1,193 +1,909 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>躲避紅色敵人</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #222;
-      font-family: sans-serif;
-    }
-    #gameCanvas {
-      display: block;
-      background: #111;
-    }
-    #gameOver {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: white;
-      font-size: 48px;
-      font-weight: bold;
-      display: none;
-    }
-    #instructions {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-size: 16px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>元素塔防戰</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --panel-bg: #34495e;
+            --accent-color: #e74c3c;
+            --text-color: #ecf0f1;
+            --highlight: #f1c40f;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* 遊戲主容器 */
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #222;
+        }
+
+        canvas {
+            display: block;
+            background-color: #34495e; /* 地圖背景色 */
+            cursor: crosshair;
+        }
+
+        /* 頂部資訊欄 */
+        #top-bar {
+            background-color: var(--panel-bg);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #2c3e50;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .stat-item span {
+            color: var(--highlight);
+            margin-left: 5px;
+        }
+
+        /* 底部建造欄 */
+        #bottom-bar {
+            background-color: var(--panel-bg);
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            border-top: 2px solid #2c3e50;
+        }
+
+        .tower-card {
+            background: #2c3e50;
+            border: 2px solid #7f8c8d;
+            border-radius: 8px;
+            padding: 10px;
+            width: 140px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .tower-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--highlight);
+            background: #3e5871;
+        }
+
+        .tower-card.selected {
+            border-color: #2ecc71;
+            background: #27ae60;
+            box-shadow: 0 0 10px #2ecc71;
+        }
+
+        .tower-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 auto 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .tower-name {
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .tower-cost {
+            color: #f1c40f;
+            font-size: 0.85rem;
+        }
+
+        .tower-desc {
+            font-size: 0.7rem;
+            color: #bdc3c7;
+            margin-top: 5px;
+            line-height: 1.2;
+        }
+
+        /* 遊戲結束/開始遮罩 */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        #overlay h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            color: var(--highlight);
+            text-shadow: 2px 2px 0 #c0392b;
+        }
+
+        #overlay p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            max-width: 60%;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        button.btn-primary {
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+
+        button.btn-primary:hover {
+            background-color: #2ecc71;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 提示訊息 */
+        #toast {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+    </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-  <div id="instructions">使用 WASD 或方向鍵移動</div>
-  <div id="gameOver">遊戲結束！</div>
 
-  <script>
+    <div id="game-container">
+        <!-- 頂部資訊 -->
+        <div id="top-bar">
+            <div class="stat-item">生命: <span id="lives-display">20</span></div>
+            <div class="stat-item">金幣: <span id="money-display">150</span></div>
+            <div class="stat-item">波次: <span id="wave-display">1</span></div>
+            <div class="stat-item">分數: <span id="score-display">0</span></div>
+        </div>
+
+        <!-- 畫布 -->
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <!-- 錯誤提示 -->
+        <div id="toast">金幣不足！</div>
+
+        <!-- 底部選單 -->
+        <div id="bottom-bar">
+            <!-- 塔 1：範圍傷害 -->
+            <div class="tower-card" onclick="selectTower('flame')" id="card-flame">
+                <div class="tower-icon" style="background: radial-gradient(circle, #e74c3c, #c0392b);"></div>
+                <span class="tower-name">火焰爆破塔</span>
+                <span class="tower-cost">💰 100</span>
+                <div class="tower-desc">短距離 | 範圍爆炸<br>攻速: 3.5秒</div>
+            </div>
+
+            <!-- 塔 2：遠距離高傷 -->
+            <div class="tower-card" onclick="selectTower('sniper')" id="card-sniper">
+                <div class="tower-icon" style="background: radial-gradient(circle, #3498db, #2980b9);"></div>
+                <span class="tower-name">雷射狙擊塔</span>
+                <span class="tower-cost">💰 200</span>
+                <div class="tower-desc">長距離 | 單體秒殺<br>攻速: 9秒</div>
+            </div>
+        </div>
+
+        <!-- 遊戲開始/結束畫面 -->
+        <div id="overlay">
+            <h1 id="overlay-title">元素塔防戰</h1>
+            <p id="overlay-msg">
+                防止敵人抵達終點！<br>
+                紅色塔：適合對付快速且集中的敵人。<br>
+                藍色塔：適合對付高血量的慢速敵人。
+            </p>
+            <button class="btn-primary" onclick="startGame()">開始遊戲</button>
+        </div>
+    </div>
+
+<script>
+    /** 
+     * 遊戲配置與常量 
+     */
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const gameOverText = document.getElementById('gameOver');
-
-    // 設定畫布大小
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // 玩家設定
-    const player = {
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      size: 20,
-      speed: 5
-    };
-
-    // 敵人（紅色）
-    const enemy = {
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      size: 20,
-      baseSpeed: 1.0,
-      speed: 1.0
-    };
-
-    // 障礙物（靜態）
-    const obstacles = [];
-    const obstacleCount = 30;
-    const obstacleSize = 30;
-
-    // 生成障礙物（避免與玩家或敵人重疊）
-    function generateObstacles() {
-      for (let i = 0; i < obstacleCount; i++) {
-        let valid = false;
-        let ox, oy;
-        while (!valid) {
-          ox = Math.random() * (canvas.width - obstacleSize);
-          oy = Math.random() * (canvas.height - obstacleSize);
-          // 檢查是否與玩家或敵人太近
-          const distToPlayer = Math.hypot(ox + obstacleSize/2 - player.x, oy + obstacleSize/2 - player.y);
-          const distToEnemy = Math.hypot(ox + obstacleSize/2 - enemy.x, oy + obstacleSize/2 - enemy.y);
-          if (distToPlayer > 100 && distToEnemy > 100) {
-            valid = true;
-            obstacles.push({x: ox, y: oy, w: obstacleSize, h: obstacleSize});
-          }
-        }
-      }
-    }
-
-    generateObstacles();
-
-    // 鍵盤控制
-    const keys = {};
-    window.addEventListener('keydown', (e) => {
-      keys[e.key.toLowerCase()] = true;
-    });
-    window.addEventListener('keyup', (e) => {
-      keys[e.key.toLowerCase()] = false;
-    });
-
-    // 檢查碰撞（AABB）
-    function checkCollision(rect1, rect2) {
-      return rect1.x < rect2.x + rect2.w &&
-             rect1.x + rect1.w > rect2.x &&
-             rect1.y < rect2.y + rect2.h &&
-             rect1.y + rect1.h > rect2.y;
-    }
-
+    
     // 遊戲狀態
-    let gameRunning = true;
-    let timeElapsed = 0;
+    let gameRunning = false;
+    let animationId;
+    let frameCount = 0;
+    let money = 150;
+    let lives = 20;
+    let wave = 1;
+    let score = 0;
+    let selectedTowerType = null;
 
-    // 主遊戲循環
-    function gameLoop(timestamp) {
-      if (!gameRunning) return;
+    // 實體數組
+    const enemies = [];
+    const towers = [];
+    const projectiles = [];
+    const particles = [];
+    
+    // 地圖路徑 (簡單的S型路徑)
+    const path = [
+        {x: 0, y: 100},
+        {x: 200, y: 100},
+        {x: 200, y: 400},
+        {x: 500, y: 400},
+        {x: 500, y: 150},
+        {x: 700, y: 150},
+        {x: 700, y: 600} // 終點
+    ];
 
-      // 清空畫布
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // 更新時間（用於加速敵人）
-      timeElapsed += 16; // 約每幀 16ms
-      enemy.speed = enemy.baseSpeed + timeElapsed / 5000; // 每 5 秒增加一點速度
-
-      // 玩家移動
-      let newX = player.x;
-      let newY = player.y;
-      if ((keys['w'] || keys['arrowup']) && player.y > 0) newY -= player.speed;
-      if ((keys['s'] || keys['arrowdown']) && player.y < canvas.height - player.size) newY += player.speed;
-      if ((keys['a'] || keys['arrowleft']) && player.x > 0) newX -= player.speed;
-      if ((keys['d'] || keys['arrowright']) && player.x < canvas.width - player.size) newX += player.speed;
-
-      // 檢查障礙物碰撞（玩家）
-      const tempPlayerRect = {x: newX, y: newY, w: player.size, h: player.size};
-      let canMove = true;
-      for (const obs of obstacles) {
-        if (checkCollision(tempPlayerRect, obs)) {
-          canMove = false;
-          break;
+    // 塔的定義
+    const TOWER_TYPES = {
+        flame: {
+            name: '火焰爆破塔',
+            cost: 100,
+            color: '#e74c3c',
+            range: 120, // 短距離
+            damage: 60,
+            cooldown: 210, // 3.5秒 (60fps * 3.5)
+            type: 'aoe', 
+            aoeRadius: 100
+        },
+        sniper: {
+            name: '雷射狙擊塔',
+            cost: 200,
+            color: '#3498db',
+            range: 350, // 長距離
+            damage: 350, // 高傷害
+            cooldown: 540, // 9秒 (60fps * 9)
+            type: 'single'
         }
-      }
-      if (canMove) {
-        player.x = newX;
-        player.y = newY;
-      }
+    };
 
-      // 敵人朝玩家移動
-      const dx = player.x - enemy.x;
-      const dy = player.y - enemy.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > 0) {
-        enemy.x += (dx / dist) * enemy.speed;
-        enemy.y += (dy / dist) * enemy.speed;
-      }
+    // 敵人定義
+    const ENEMY_TYPES = {
+        tank: {
+            name: '重裝巨獸',
+            color: '#2c3e50',
+            radius: 18,
+            speed: 1.0, // 慢
+            hp: 800, // 高血量
+            reward: 30
+        },
+        scout: {
+            name: '極速斥候',
+            color: '#f1c40f',
+            radius: 10,
+            speed: 2.8, // 快
+            hp: 60, // 低血量
+            reward: 10
+        }
+    };
 
-      // 繪製障礙物
-      ctx.fillStyle = '#555';
-      for (const obs of obstacles) {
-        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-      }
+    /**
+     * 類定義
+     */
 
-      // 繪製玩家
-      ctx.fillStyle = 'blue';
-      ctx.fillRect(player.x, player.y, player.size, player.size);
+    class Enemy {
+        constructor(type) {
+            this.type = type;
+            const config = ENEMY_TYPES[type];
+            this.x = path[0].x;
+            this.y = path[0].y;
+            this.radius = config.radius;
+            this.speed = config.speed;
+            this.maxHp = config.hp;
+            this.hp = config.hp;
+            this.reward = config.reward;
+            this.pathIndex = 0;
+            this.frozen = false; // 預留擴展
+        }
 
-      // 繪製敵人
-      ctx.fillStyle = 'red';
-      ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+        update() {
+            // 尋找下一個路徑點
+            const target = path[this.pathIndex + 1];
+            if (!target) return; // 到達終點
 
-      // 檢查玩家與敵人碰撞
-      const playerRect = {x: player.x, y: player.y, w: player.size, h: player.size};
-      const enemyRect = {x: enemy.x, y: enemy.y, w: enemy.size, h: enemy.size};
-      if (checkCollision(playerRect, enemyRect)) {
-        gameRunning = false;
-        gameOverText.style.display = 'block';
-        return;
-      }
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
+            const dist = Math.hypot(dx, dy);
 
-      requestAnimationFrame(gameLoop);
+            // 移動
+            if (dist < this.speed) {
+                this.x = target.x;
+                this.y = target.y;
+                this.pathIndex++;
+                if (this.pathIndex >= path.length - 1) {
+                    this.reachBase();
+                }
+            } else {
+                this.x += (dx / dist) * this.speed;
+                this.y += (dy / dist) * this.speed;
+            }
+        }
+
+        draw() {
+            ctx.fillStyle = this.type === 'tank' ? '#34495e' : '#f39c12';
+            
+            // 繪製身體
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 繪製邊框區分敵人
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 血條
+            const hpPercent = this.hp / this.maxHp;
+            const barWidth = 30;
+            const barHeight = 4;
+            ctx.fillStyle = 'red';
+            ctx.fillRect(this.x - barWidth/2, this.y - this.radius - 8, barWidth, barHeight);
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(this.x - barWidth/2, this.y - this.radius - 8, barWidth * hpPercent, barHeight);
+        }
+
+        takeDamage(amount) {
+            this.hp -= amount;
+            if (this.hp <= 0) {
+                this.die();
+            } else {
+                // 受傷特效 (簡單的白色閃爍)
+                // 可以在這裡添加受傷粒子
+            }
+        }
+
+        die() {
+            // 標記為死亡，由主循環移除
+            this.dead = true;
+            addMoney(this.reward);
+            addScore(this.reward);
+            createExplosion(this.x, this.y, this.type === 'tank' ? '#2c3e50' : '#f1c40f', 5);
+        }
+
+        reachBase() {
+            this.dead = true;
+            loseLife();
+        }
     }
 
-    // 啟動遊戲
-    requestAnimationFrame(gameLoop);
+    class Tower {
+        constructor(x, y, typeKey) {
+            this.x = x;
+            this.y = y;
+            this.typeKey = typeKey;
+            const config = TOWER_TYPES[typeKey];
+            this.range = config.range;
+            this.damage = config.damage;
+            this.cooldownMax = config.cooldown;
+            this.cooldown = 0;
+            this.color = config.color;
+            this.attackType = config.type;
+            this.aoeRadius = config.aoeRadius || 0;
+            this.angle = 0;
+        }
 
-    // 視窗調整時重新設定畫布
-    window.addEventListener('resize', () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+        update() {
+            if (this.cooldown > 0) this.cooldown--;
+
+            // 尋找目標
+            let target = null;
+            let minDist = Infinity;
+
+            // 優先攻擊走得最遠的敵人 (簡單的邏輯：找離終點最近的)
+            // 這裡為了簡單，找射範圍內離塔最近的
+            for (const enemy of enemies) {
+                const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                if (dist <= this.range) {
+                    if (dist < minDist) {
+                        minDist = dist;
+                        target = enemy;
+                    }
+                }
+            }
+
+            if (target) {
+                // 旋轉砲塔指向目標
+                this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+
+                if (this.cooldown <= 0) {
+                    this.shoot(target);
+                    this.cooldown = this.cooldownMax;
+                }
+            }
+        }
+
+        shoot(target) {
+            if (this.attackType === 'single') {
+                projectiles.push(new Projectile(this.x, this.y, target, this.damage, this.typeKey, 'single'));
+            } else {
+                projectiles.push(new Projectile(this.x, this.y, target, this.damage, this.typeKey, 'aoe', this.aoeRadius));
+            }
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            
+            // 繪製底座
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(-15, -15, 30, 30);
+
+            // 旋轉砲塔部分
+            ctx.rotate(this.angle);
+            
+            ctx.fillStyle = this.color;
+            if (this.typeKey === 'flame') {
+                // 火焰塔：圓形粗砲管
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(0, -6, 20, 12);
+            } else {
+                // 狙擊塔：長細砲管
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(25, 0);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 6;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#2980b9';
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+    }
+
+    class Projectile {
+        constructor(x, y, target, damage, originType, attackType, aoeRadius) {
+            this.x = x;
+            this.y = y;
+            this.target = target;
+            this.damage = damage;
+            this.speed = 8;
+            this.active = true;
+            this.originType = originType;
+            this.attackType = attackType; // 'single' or 'aoe'
+            this.aoeRadius = aoeRadius;
+            
+            // 預測目標位置
+            const angle = Math.atan2(target.y - y, target.x - x);
+            this.vx = Math.cos(angle) * this.speed;
+            this.vy = Math.sin(angle) * this.speed;
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+
+            // 簡單的碰撞檢測 (如果超出邊界或靠近目標)
+            // 注意：實際上應該檢測是否擊中任何敵人，但為了追蹤效果，我們檢查距離目標的距離
+            // 如果目標死了，子彈繼續飛直到撞牆或超時
+            
+            let hit = false;
+            
+            // 檢查是否擊中當前鎖定目標
+            if (!this.target.dead) {
+                const dist = Math.hypot(this.x - this.target.x, this.y - this.target.y);
+                if (dist < this.target.radius + 10) {
+                    hit = true;
+                    this.applyDamage(this.target);
+                }
+            } else {
+                // 如果目標死了，檢查是否撞到路徑或其他敵人（簡化：直接飛出畫面消失）
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                    this.active = false;
+                }
+                // 額外邏輯：如果目標死時子彈很近，可以判定擊中當前位置的其他敵人
+                // 這裡為了簡化，鎖定目標死亡後子彈不造成傷害
+            }
+
+            if (hit) {
+                this.active = false;
+                if (this.attackType === 'aoe') {
+                    createExplosion(this.x, this.y, '#e67e22', 15); // 大爆炸
+                } else {
+                    createExplosion(this.x, this.y, '#ecf0f1', 5); // 小擊中
+                }
+            }
+        }
+
+        applyDamage(primaryTarget) {
+            if (this.attackType === 'single') {
+                primaryTarget.takeDamage(this.damage);
+            } else {
+                // AOE: 傷害主要目標 + 範圍內所有敵人
+                primaryTarget.takeDamage(this.damage);
+                enemies.forEach(enemy => {
+                    if (enemy !== primaryTarget && !enemy.dead) {
+                        const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                        if (dist <= this.aoeRadius) {
+                            // AOE 傷害可能較低或相同，這裡設為相同
+                            enemy.takeDamage(this.damage * 0.8); 
+                        }
+                    }
+                });
+            }
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+            if (this.originType === 'flame') {
+                ctx.fillStyle = '#e74c3c';
+            } else {
+                ctx.fillStyle = '#3498db';
+            }
+            ctx.fill();
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 2 + 1;
+            this.vx = Math.cos(angle) * speed;
+            this.vy = Math.sin(angle) * speed;
+            this.alpha = 1;
+            this.decay = Math.random() * 0.03 + 0.02;
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.alpha -= this.decay;
+        }
+
+        draw() {
+            ctx.globalAlpha = this.alpha;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    /**
+     * 遊戲邏輯函數
+     */
+
+    function startGame() {
+        document.getElementById('overlay').classList.add('hidden');
+        resetGame();
+        gameRunning = true;
+        gameLoop();
+        spawnWave();
+    }
+
+    function resetGame() {
+        enemies.length = 0;
+        towers.length = 0;
+        projectiles.length = 0;
+        particles.length = 0;
+        money = 350; // 初始金錢
+        lives = 20;
+        wave = 1;
+        score = 0;
+        updateUI();
+        selectedTowerType = null;
+        document.querySelectorAll('.tower-card').forEach(c => c.classList.remove('selected'));
+    }
+
+    function spawnWave() {
+        if (!gameRunning) return;
+
+        const waveConfig = getWaveConfig(wave);
+        let enemiesSpawned = 0;
+        
+        const spawnInterval = setInterval(() => {
+            if (!gameRunning) {
+                clearInterval(spawnInterval);
+                return;
+            }
+            
+            const type = enemiesSpawned % 2 === 0 ? 'scout' : 'tank'; // 交替生成
+            // 後期波次可能全部是tank或混合
+            const finalType = wave > 3 && Math.random() > 0.5 ? 'tank' : type;
+            
+            enemies.push(new Enemy(finalType));
+            enemiesSpawned++;
+
+            if (enemiesSpawned >= waveConfig.count) {
+                clearInterval(spawnInterval);
+            }
+        }, waveConfig.interval);
+
+        // 準備下一波（簡單計時器）
+        setTimeout(() => {
+            if(gameRunning) {
+                wave++;
+                updateUI();
+                spawnWave();
+            }
+        }, waveConfig.count * waveConfig.interval + 10000); // 10秒休息
+    }
+
+    function getWaveConfig(currentWave) {
+        // 隨波次增加難度
+        return {
+            count: 5 + Math.floor(currentWave * 1.5),
+            interval: Math.max(800, 1500 - currentWave * 50)
+        };
+    }
+
+    function gameLoop() {
+        if (!gameRunning) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frameCount++;
+
+        // 繪製路徑
+        drawPath();
+
+        // 更新與繪製塔
+        towers.forEach(tower => {
+            tower.update();
+            tower.draw();
+        });
+
+        // 更新與繪製敵人
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const enemy = enemies[i];
+            enemy.update();
+            enemy.draw();
+            if (enemy.dead) {
+                enemies.splice(i, 1);
+            }
+        }
+
+        // 更新與繪製子彈
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            const p = projectiles[i];
+            p.update();
+            p.draw();
+            if (!p.active) {
+                projectiles.splice(i, 1);
+            }
+        }
+
+        // 更新與繪製粒子
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.update();
+            p.draw();
+            if (p.alpha <= 0) {
+                particles.splice(i, 1);
+            }
+        }
+        
+        // 繪製選取範圍預覽 (如果滑鼠在地圖上)
+        // (略過複雜的滑鼠位置追蹤以保持代碼簡潔，改為放置後顯示)
+
+        if (lives <= 0) {
+            gameOver();
+            return;
+        }
+
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function drawPath() {
+        ctx.beginPath();
+        ctx.lineWidth = 40;
+        ctx.strokeStyle = '#2c3e50'; // 路徑顏色
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        if (path.length > 0) {
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y);
+            }
+        }
+        ctx.stroke();
+
+        // 繪製起點和終點標記
+        ctx.fillStyle = '#27ae60';
+        ctx.beginPath();
+        ctx.arc(path[0].x, path[0].y, 15, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText("起點", path[0].x, path[0].y + 40);
+
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        const end = path[path.length-1];
+        ctx.arc(end.x, end.y, 20, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText("終點", end.x, end.y - 30);
+    }
+
+    function createExplosion(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+            particles.push(new Particle(x, y, color));
+        }
+    }
+
+    /**
+     * 互動與UI
+     */
+
+    function selectTower(type) {
+        selectedTowerType = type;
+        
+        // UI 更新
+        document.querySelectorAll('.tower-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById(`card-${type}`).classList.add('selected');
+    }
+
+    // 地圖點擊事件：建造塔
+    canvas.addEventListener('mousedown', (e) => {
+        if (!gameRunning || !selectedTowerType) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // 檢查金錢
+        const cost = TOWER_TYPES[selectedTowerType].cost;
+        if (money < cost) {
+            showToast("金幣不足！");
+            return;
+        }
+
+        // 檢查是否在路徑上 (簡單的碰撞檢測)
+        // 計算點到線段的距離
+        if (isOnPath(x, y)) {
+            showToast("無法在路徑上建造！");
+            return;
+        }
+
+        // 檢查是否與其他塔重疊
+        for (const t of towers) {
+            if (Math.hypot(t.x - x, t.y - y) < 40) {
+                showToast("位置太擠了！");
+                return;
+            }
+        }
+
+        // 建造成功
+        towers.push(new Tower(x, y, selectedTowerType));
+        money -= cost;
+        updateUI();
+        createExplosion(x, y, '#fff', 10); // 建造特效
     });
-  </script>
+
+    // 簡單的路徑碰撞檢測
+    function isOnPath(x, y) {
+        const lineWidth = 40; // 路徑寬度的一半 + 一點緩衝
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = path[i];
+            const p2 = path[i+1];
+            
+            // 計算點到線段(p1, p2)的最短距離
+            const A = x - p1.x;
+            const B = y - p1.y;
+            const C = p2.x - p1.x;
+            const D = p2.y - p1.y;
+
+            const dot = A * C + B * D;
+            const len_sq = C * C + D * D;
+            let param = -1;
+            if (len_sq != 0) // in case of 0 length line
+                param = dot / len_sq;
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = p1.x;
+                yy = p1.y;
+            } else if (param > 1) {
+                xx = p2.x;
+                yy = p2.y;
+            } else {
+                xx = p1.x + param * C;
+                yy = p1.y + param * D;
+            }
+
+            const dx = x - xx;
+            const dy = y - yy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < lineWidth) return true;
+        }
+        return false;
+    }
+
+    function addMoney(amount) {
+        money += amount;
+        updateUI();
+    }
+
+    function addScore(amount) {
+        score += amount;
+        updateUI();
+    }
+
+    function loseLife() {
+        lives--;
+        updateUI();
+        // 屏幕紅色閃爍警示
+        canvas.style.boxShadow = "inset 0 0 50px rgba(255,0,0,0.5)";
+        setTimeout(() => {
+            canvas.style.boxShadow = "none";
+        }, 200);
+    }
+
+    function updateUI() {
+        document.getElementById('money-display').innerText = money;
+        document.getElementById('lives-display').innerText = lives;
+        document.getElementById('wave-display').innerText = wave;
+        document.getElementById('score-display').innerText = score;
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.style.opacity = 1;
+        setTimeout(() => {
+            toast.style.opacity = 0;
+        }, 1500);
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        document.getElementById('overlay').classList.remove('hidden');
+        document.getElementById('overlay-title').innerText = "遊戲結束";
+        document.getElementById('overlay-msg').innerHTML = `你的防線被突破了！<br>最終波次: ${wave}<br>總分: ${score}`;
+        document.querySelector('#overlay button').innerText = "重新開始";
+    }
+
+</script>
 </body>
 </html>
